@@ -1,0 +1,58 @@
+version: "3"
+
+services:
+  python:
+    image: python:latest
+    volumes:
+      - shared-volume:/shared-data
+      - ./app:/app
+    working_dir: /app
+    command: tail -f /dev/null
+
+  hadoop:
+    image: sequenceiq/hadoop-docker:latest
+    container_name: hadoop
+    ports:
+      - "50070:50070"
+      - "8088:8088"
+      - "9000:9000"
+    environment:
+      - HDFS_DATANODE_USER=root
+      - HDFS_NAMENODE_USER=root
+      - HDFS_SECONDARYNAMENODE_USER=root
+      - YARN_RESOURCEMANAGER_USER=root
+    volumes:
+      - shared-volume:/shared-data
+
+  hive:
+    image: bde2020/hive:2.3.7-postgresql-metastore
+    container_name: hive
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+      - "9083:9083"
+    depends_on:
+      - hadoop
+    environment:
+      - HADOOP_NAMENODE=hadoop
+      - HIVE_METASTORE_PORT=9083
+    volumes:
+      - shared-volume:/shared-data
+
+  spark:
+    image: bde2020/spark:3.1.1-hadoop3.2
+    container_name: spark
+    ports:
+      - "4040:4040"
+      - "8080:8080"
+    depends_on:
+      - hadoop
+      - hive
+    environment:
+      - HADOOP_HOST=hadoop
+      - HIVE_HOST=hive
+    volumes:
+      - shared-volume:/shared-data
+
+volumes:
+  shared-volume:
